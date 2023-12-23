@@ -1,0 +1,46 @@
+//@version=5
+strategy("Long Strategy with 30-Minute Window (v5)", overlay=true)
+
+// Input for SMA
+smaLength = input(9, title="Length for SMA")
+sma9 = ta.sma(close, smaLength)
+
+// ATR for profit target calculation
+atrLength = input(1, title="ATR Length")
+atrValue = ta.atr(atrLength)
+
+// VWAP
+vwapValue = ta.vwap(close)
+
+// Market Open Time (Assuming NYSE for example, adjust according to your market)
+marketOpenHour = 9
+marketOpenMinute = 30
+
+// Time Check Function
+isWithin30MinOfOpen() =>
+    sessionTime = timestamp("GMT-5", year, month, dayofmonth, marketOpenHour, marketOpenMinute, 0)
+    time - sessionTime < 30 * 60 * 1000 // 30 minutes in milliseconds
+
+// Condition for crossing above SMA
+crossedAboveSMA = ta.crossover(close, sma9)
+
+// Plotting SMA and VWAP on the chart
+plot(sma9, color=color.blue, title="9-bar SMA")
+plot(vwapValue, color=color.purple, title="VWAP")
+
+// Strategy logic
+var int lastCrossBar = na
+var float stopLossPrice = na
+
+if (crossedAboveSMA)
+    lastCrossBar := bar_index
+    stopLossPrice := low[1]
+
+goLong = (close > vwapValue) and (bar_index == lastCrossBar + 2) and (close[1] > open[1]) and (close > open) and isWithin30MinOfOpen()
+
+if (goLong)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Take Profit", "Long", limit=close + atrValue, stop=stopLossPrice)
+
+// Plot entry signals
+plotshape(goLong, title="Go Long Signal", location=location.belowbar, color=color.green, style=shape.labelup, text="LONG")
